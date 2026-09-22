@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STEP 03 - Annotate people already present in the backgrounds (paper
-Sec. 3.1.3, "The final step is to annotate the images that contain people
-already identified in the background ...").
+STEP 03 - Annotate people already present in the backgrounds (paper Sec. 3.1.3, "The final step is to annotate the images that contain people already identified in the background ...").
 
-Some aerial disaster shots already contain rescuers or victims. Instead of
-discarding them, their boxes are kept as ground truth and the combination
-step (05) treats them as occupied space, so pasted figures never overlap
-them and both real and synthetic people end up in the same label file.
+Some aerial disaster shots already contain rescuers or victims. Instead of discarding them, their boxes are kept as ground truth and the combination step (05) treats them as occupied space, so pasted figures never overlap them and both real and synthetic people end up in the same label file.
 
 Input : backgrounds/images/*
 Output: backgrounds/labels/<stem>.txt   YOLO "0 cx cy w h" (only when people found)
@@ -16,8 +11,7 @@ Output: backgrounds/labels/<stem>.txt   YOLO "0 cx cy w h" (only when people fou
         backgrounds/preview/labels/*       optional boxes drawn on N images
 
 Detector: Ultralytics YOLOv8x (COCO) restricted to class 0 = person,
-confidence >= BG_PERSON_MIN_CONF, inference at BG_PERSON_IMGSZ.
-The script is resumable (images in the report are skipped).
+confidence >= BG_PERSON_MIN_CONF, inference at BG_PERSON_IMGSZ. The script is resumable (images in the report are skipped).
 """
 
 import argparse

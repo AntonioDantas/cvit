@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STEP 05 - Combination strategy: cluster-based C2A synthesis (paper Sec. 3.1.3
-and 4.1).
+STEP 05 - Combination strategy: cluster-based C2A synthesis (paper Sec. 3.1.3 and 4.1).
 
 Input : backgrounds/images/*      curated aerial disaster shots (step 01)
         backgrounds/cloud.txt     forbidden sky band per image (step 02)
@@ -12,32 +11,24 @@ Output: out/images/img_XXXXXX.jpg   synthetic images
         out/labels/img_XXXXXX.txt   YOLO labels = original people + pasted people
         out/manifest.csv            provenance of every generated image
         out/debug/                  triples (background / composite / boxes)
-                                    for the first --debug-samples images;
-                                    blue boxes = real people kept from the
-                                    background, red boxes = pasted instances
+                                    for the first --debug-samples images; blue boxes = real people kept from the background, red boxes = pasted instances
 
-For every background, `variants_per_bg` images are produced. Each one starts
-from the ORIGINAL label boxes of the background (they are copied to the new
-label file and treated as occupied space), then new instances are inserted:
+For every background, `variants_per_bg` images are produced. Each one starts from the ORIGINAL label boxes of the background (they are copied to the new label file and treated as occupied space), then new instances are inserted:
 
   mode "fill"     (v1, v2)  grid over the whole allowed area followed by a
                             random fill up to max_per_bg (~100 / image).
   mode "clusters" (v3-v5)   N ~ U[clusters] rectangles (10-50 % of the
-                            image) are drawn under the sky line; each has an
-                            internal rows x cols grid and every cell receives
-                            1..max_per_cell figures, with a per-image cap
-                            max_per_bg (~30 / image) so the budget is spread
-                            over the clusters.
+                            image) are drawn under the sky line; each has an internal rows x cols grid and every cell receives 1..max_per_cell figures, with a per-image cap max_per_bg (~30 / image) so the budget is spread over the clusters.
 
-Backgrounds larger than BG_MAX_SIDE (1280 px) are shrunk first (training
-uses 640 px). Every pasted figure is scaled to 1-4 % of the shorter side, rotated in
-[-90, 90] and - when `augment` is on - may receive side crop (occlusion),
-brightness matching, blur, noise and JPEG compression (Sec. 4.1).
+Backgrounds larger than BG_MAX_SIDE (1280 px) are shrunk first (training uses 640 px). Every pasted figure is scaled to 1-4 % of the shorter side, rotated in [-90, 90] and - when `augment` is on - may receive side crop (occlusion), brightness matching, blur, noise and JPEG compression (Sec. 4.1).
+
+A share of the dataset (`background_fraction`, 10 % by default) is made of BACKGROUND-ONLY images: the bare aerial shot with an empty label file. They are drawn - with the pipeline seed - from the backgrounds that contain no real person (step 03), so the negative is genuinely person-free, and they are written as the extra variant "bg" of their background, which keeps them in the same subset as their siblings when step 06 splits per background.
 
 Usage
   python 05-combine.py                      # v4 (published)
   python 05-combine.py --version v1         # any preset in config.VERSIONS
   python 05-combine.py --limit 30 --clean   # quick check on 30 backgrounds
+  python 05-combine.py --background-only    # only add the missing negatives
 """
 
 import argparse
@@ -52,7 +43,7 @@ from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageStat
 from tqdm import tqdm
 
 import config as C
-from pipeline_utils import (draw_boxes, list_images, read_cloud_file,
+from pipeline_utils import (draw_boxes, list_images, read_cloud_file, read_csv,
                             read_yolo_labels, xyxy_to_yolo, yolo_to_xyxy)
 
 Box = Tuple[int, int, int, int]
@@ -268,6 +259,31 @@ class Composer:
 
 
 # ------------------------------------------------------------- main
+NEGATIVE_VARIANT = "bg"      # manifest tag of a background-only image
+
+
+def select_negatives(bgs: List[Path], cfg: dict, n_positives: int, already: set) -> set:
+    """Pick the backgrounds that also yield a background-only (person-free) image.
+
+    `background_fraction` is the share of the FINAL dataset, so with f = 0.10 and P positives we need N = f / (1 - f) * P negatives. Only backgrounds with no real person (step 03) are eligible and each gives at most one negative, so the pick is a seeded sample of the eligible names not covered yet.
+    """
+    f = cfg["background_fraction"]
+    if f <= 0:
+        return set()
+    target = round(f / (1.0 - f) * n_positives) - len(already)
+    if target <= 0:
+        return set()
+
+    def person_free(b: Path) -> bool:
+        lab = C.BG_LABELS / f"{b.stem}.txt"
+        return not (lab.exists() and lab.read_text(encoding="utf-8").strip())
+
+    eligible = sorted(b.name for b in bgs if b.name not in already and person_free(b))
+    if target >= len(eligible):
+        return set(eligible)
+    return set(random.Random(cfg.get("seed", C.SEED)).sample(eligible, target))
+
+
 def next_index(out_images: Path) -> int:
     idx = [int(p.stem.split("_")[1]) for p in out_images.glob("img_*.jpg")]
     return max(idx) if idx else 0
@@ -281,11 +297,17 @@ def main():
     ap.add_argument("--seed", type=int, default=C.SEED)
     ap.add_argument("--debug-samples", type=int, default=30, help="save debug triples for the first N images")
     ap.add_argument("--clean", action="store_true", help="delete out/images, out/labels, out/debug first")
+    ap.add_argument("--background-fraction", type=float, default=None,
+                    help="share of background-only images (default from config)")
+    ap.add_argument("--background-only", action="store_true",
+                    help="generate only the missing background-only images of an existing out/")
     args = ap.parse_args()
 
     cfg = C.combine_config(args.version)
     if args.variants:
         cfg["variants_per_bg"] = args.variants
+    if args.background_fraction is not None:
+        cfg["background_fraction"] = args.background_fraction
     random.seed(args.seed)
 
     bgs = list_images(C.BG_IMAGES)[: args.limit]
@@ -302,11 +324,25 @@ def main():
     for d in (C.OUT_IMAGES, C.OUT_LABELS, C.OUT_DEBUG):
         d.mkdir(parents=True, exist_ok=True)
 
+    cfg["seed"] = args.seed
+    done = read_csv(C.OUT_MANIFEST) if C.OUT_MANIFEST.exists() else []
+    have_neg = {r["background"] for r in done if r["variant"] == NEGATIVE_VARIANT}
+    if args.background_only:
+        # the positives are already on disk; size the negatives against them
+        n_positives = sum(1 for r in done if r["variant"] != NEGATIVE_VARIANT)
+        if not n_positives:
+            raise SystemExit("--background-only needs an existing out/manifest.csv with positives")
+    else:
+        n_positives = len(bgs) * cfg["variants_per_bg"]
+    negatives = select_negatives(bgs, cfg, n_positives, have_neg)
+
     print(f"version {args.version}: {cfg['note']}")
     print(f"  mode={cfg['mode']} clusters={cfg['clusters']} grid={cfg['grid']} "
           f"max_per_cell={cfg['max_per_cell']} max_per_bg={cfg['max_per_bg']} augment={cfg['augment']}")
     print(f"  {len(bgs)} backgrounds x {cfg['variants_per_bg']} variants, {len(people)} cut-outs, "
           f"sky band for {len(cloud)} images")
+    print(f"  background-only: {len(negatives)} new + {len(have_neg)} existing "
+          f"(target {cfg['background_fraction']:.0%} of the dataset)")
 
     idx = next_index(C.OUT_IMAGES)
     new_manifest = not C.OUT_MANIFEST.exists()
@@ -331,14 +367,18 @@ def main():
         y_min = int(h * C.DEFAULT_TOP_EXCLUSION) if sky_px is None else min(h, round(sky_px * h / orig_h))
         orig_lines, orig_boxes = read_yolo_labels(C.BG_LABELS / f"{bg_path.stem}.txt", w, h)
 
-        n_variants = cfg["variants_per_bg"] + cfg["empty_variants_per_bg"]
-        for v in range(n_variants):
+        variants = [] if args.background_only else list(range(cfg["variants_per_bg"]))
+        if bg_path.name in negatives:
+            variants.append(NEGATIVE_VARIANT)
+        for v in variants:
             comp = Composer(bg, orig_boxes, y_min, cfg, pool)
-            if v < cfg["variants_per_bg"]:
-                n_new = comp.run_clusters() if cfg["mode"] == "clusters" else comp.run_fill()
+            if v == NEGATIVE_VARIANT:
+                # background-only image: nothing pasted and an EMPTY label file, so the detector sees a person-free disaster scene
+                n_new = 0
+                lines = []
             else:
-                n_new = 0  # negative / background-only variant
-            lines = list(orig_lines) + [xyxy_to_yolo(0, b, w, h) for b in comp.new_boxes]
+                n_new = comp.run_clusters() if cfg["mode"] == "clusters" else comp.run_fill()
+                lines = list(orig_lines) + [xyxy_to_yolo(0, b, w, h) for b in comp.new_boxes]
 
             idx += 1
             base = f"img_{idx:06d}"
@@ -346,11 +386,11 @@ def main():
             rgb.save(C.OUT_IMAGES / f"{base}.jpg", quality=95)
             (C.OUT_LABELS / f"{base}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
             writer.writerow(dict(image=f"{base}.jpg", background=bg_path.name, version=args.version,
-                                 variant=v, n_original=len(orig_boxes), n_pasted=n_new, sky_px=y_min))
-            tot_orig += len(orig_boxes)
+                                 variant=v, n_original=len(lines) - n_new, n_pasted=n_new, sky_px=y_min))
+            tot_orig += len(lines) - n_new
             tot_new += n_new
 
-            if debug_left > 0:
+            if debug_left > 0 and v != NEGATIVE_VARIANT:
                 debug_left -= 1
                 bg.convert("RGB").save(C.OUT_DEBUG / f"{base}_1_background.jpg", quality=90)
                 rgb.save(C.OUT_DEBUG / f"{base}_2_composite.jpg", quality=90)

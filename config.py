@@ -3,12 +3,10 @@
 """
 Central configuration for the C2A cluster-based synthetic pipeline.
 
-Every step (01-...07-) imports its paths, model names and generation presets
-from here, so the whole pipeline can be re-targeted by editing one file.
+Every step (01-...07-) imports its paths, model names and generation presets from here, so the whole pipeline can be re-targeted by editing one file.
 
 Reference:
-  Fh, A. J. D. et al. "Long-range human detection in SAR: The C2A
-  cluster-based synthetic approach", CVIT 2026 (SPIE vol. 14321, pp. 21-28).
+  Fh, A. J. D. et al. "Long-range human detection in SAR: The C2A cluster-based synthetic approach", CVIT 2026 (SPIE vol. 14321, pp. 21-28).
 """
 
 from pathlib import Path
@@ -59,8 +57,7 @@ DEFAULT_TOP_EXCLUSION = 0.30   # fallback when an image is missing in cloud.txt
 # Background removal (Sec. 3.1.2): rembg U2-Net human segmentation
 REMBG_MODEL = "u2net_human_seg"
 REMBG_PROVIDERS = ["CoreMLExecutionProvider", "CUDAExecutionProvider", "CPUExecutionProvider"]
-PERSON_MAX_SIDE_IN = 800       # MPHB frames are shrunk to this before rembg (U2-Net
-                               # works at 320 px; cut-outs end up <= 81 px anyway)
+PERSON_MAX_SIDE_IN = 800       # MPHB frames are shrunk to this before rembg (U2-Net works at 320 px; cut-outs end up <= 81 px anyway)
 PERSON_BATCH = 16              # images per detector call in step 04
 
 # Person detector (COCO, class 0 = person) used for
@@ -122,7 +119,9 @@ COMBINE_BASE = {
     "cluster_min_height_frac": 0.10,
     "cluster_max_height_frac": 0.50,
     "cluster_max_iou": 0.30,      # clusters may overlap at most this much
-    "empty_variants_per_bg": 0,   # extra negatives (background only)
+
+    # Share of the final dataset made of background-only images (no person at all): the usual Ultralytics recommendation is about 10 % of negatives to teach the detector what an empty flood/landslide scene looks like and cut false positives on debris, rocks and foam. Only backgrounds WITHOUT real people (step 03) are eligible, and each contributes at most one negative.
+    "background_fraction": 0.10,
 }
 
 # Dataset versions evaluated in Sec. 4.1 (Table 1). v4 is the published model.

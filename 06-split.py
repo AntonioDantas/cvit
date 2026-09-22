@@ -7,9 +7,7 @@ Input : out/images, out/labels, out/manifest.csv
 Output: out/train.txt, out/val.txt, out/test.txt   image paths relative to out/
         out/dataset.yaml                            Ultralytics dataset file
 
-The split is done per BACKGROUND (all variants generated from the same
-aerial shot land in the same subset), so validation/test images never share
-a background with training images. Use --by-image for a plain random split.
+The split is done per BACKGROUND (all variants generated from the same aerial shot land in the same subset), so validation/test images never share a background with training images. Use --by-image for a plain random split.
 """
 
 import argparse
@@ -45,8 +43,7 @@ def main():
 
     for name, ks in parts.items():
         files = sorted(img for k in ks for img in groups[k])
-        # "./images/x.jpg" is resolved by Ultralytics relative to the txt file,
-        # so the dataset folder can be moved / cloned anywhere
+        # "./images/x.jpg" is resolved by Ultralytics relative to the txt file, so the dataset folder can be moved / cloned anywhere
         (C.OUT_DIR / f"{name}.txt").write_text(
             "\n".join(f"./images/{f}" for f in files) + "\n", encoding="utf-8")
         print(f"{name:5s} {len(ks):5d} groups  {len(files):6d} images")

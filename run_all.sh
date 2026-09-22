@@ -1,7 +1,5 @@
 #!/bin/zsh
-# End-to-end reproduction of the C2A cluster-based synthetic dataset (v4)
-# followed by YOLO11n training. Every step is resumable, so re-running the
-# script continues where it stopped.
+# End-to-end reproduction of the C2A cluster-based synthetic dataset (v4) followed by YOLO11n training. Every step is resumable, so re-running the script continues where it stopped.
 #
 #   ./run_all.sh              # full pipeline
 #   VERSION=v1 ./run_all.sh   # another preset from config.VERSIONS

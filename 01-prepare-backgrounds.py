@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STEP 01 - Background curation (paper Sec. 3.1.1, "Acquisition and Processing
-of Background Images").
+STEP 01 - Background curation (paper Sec. 3.1.1, "Acquisition and Processing of Background Images").
 
 Input : datasets/<SOURCE>/**  (already manually filtered aerial views of
         hydrological disasters: AIDER, ERA, Alley Flood Net, Kaggle, Roboflow)
@@ -13,8 +12,7 @@ What it does
   1. walks every source folder recursively and renames files to a flat,
      shell-safe scheme ("<SOURCE>_<stem>") so cloud.txt / labels match by stem;
   2. removes near-duplicates with a perceptual hash (pHash, Hamming
-     distance <= DEDUP_PHASH_THRESHOLD), keeping one image per group, exactly
-     as the original duplicate.py did.
+     distance <= DEDUP_PHASH_THRESHOLD), keeping one image per group, exactly as the original duplicate.py did.
 
 Usage
   python 01-prepare-backgrounds.py            # default

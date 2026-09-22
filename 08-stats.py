@@ -4,9 +4,7 @@
 STEP 08 - Dataset statistics (compare with Table 3 of the paper:
 OURs = 1 class, 226,638 instances, 6,162 images).
 
-Reads out/manifest.csv, out/labels and the split lists; prints a markdown
-table with images / instances per subset and the share of real vs. pasted
-people.
+Reads out/manifest.csv, out/labels and the split lists; prints a markdown table with images / instances per subset, the share of real vs. pasted people and the share of background-only (person-free) images.
 """
 
 from collections import Counter
@@ -27,7 +25,7 @@ def main():
             for line in f.read_text().splitlines():
                 split_of[line.strip().split("/")[-1]] = name
 
-    imgs, inst, real, pasted = Counter(), Counter(), Counter(), Counter()
+    imgs, inst, real, pasted, bgonly = Counter(), Counter(), Counter(), Counter(), Counter()
     box_w, box_h, n_boxes = 0.0, 0.0, 0
     for r in rows:
         s = split_of.get(r["image"], "all")
@@ -37,6 +35,7 @@ def main():
             inst[key] += n_lab
             real[key] += int(r["n_original"])
             pasted[key] += int(r["n_pasted"])
+            bgonly[key] += (n_lab == 0)   # background-only image: empty label file
         for l in (C.OUT_LABELS / r["image"].replace(".jpg", ".txt")).read_text().splitlines():
             p = l.split()
             if len(p) == 5:
@@ -44,10 +43,11 @@ def main():
 
     versions = Counter(r["version"] for r in rows)
     print(f"versions: {dict(versions)}   backgrounds: {len({r['background'] for r in rows})}\n")
-    print("| subset | images | instances | real | pasted | inst/img |")
-    print("|---|---:|---:|---:|---:|---:|")
+    print("| subset | images | instances | real | pasted | inst/img | background-only |")
+    print("|---|---:|---:|---:|---:|---:|---:|")
     for k in [k for k in ("train", "val", "test", "all", "total") if imgs[k]]:
-        print(f"| {k} | {imgs[k]} | {inst[k]} | {real[k]} | {pasted[k]} | {inst[k] / imgs[k]:.1f} |")
+        print(f"| {k} | {imgs[k]} | {inst[k]} | {real[k]} | {pasted[k]} | "
+              f"{inst[k] / imgs[k]:.1f} | {bgonly[k]} ({bgonly[k] / imgs[k]:.1%}) |")
     if n_boxes:
         print(f"\nmean box size (normalised): {box_w / n_boxes:.4f} x {box_h / n_boxes:.4f}")
 

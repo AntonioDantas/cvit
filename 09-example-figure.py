@@ -3,8 +3,7 @@
 """
 STEP 09 (optional) - Example figure like Fig. 1 of the paper.
 
-Builds a grid with one column group per scene class (Flood, Landslide,
-Mudslide - taken from the ERA backgrounds) and three rows:
+Builds a grid with one column group per scene class (Flood, Landslide, Mudslide - taken from the ERA backgrounds) and three rows:
   Original   the curated background
   Combine    the synthetic image produced by 05-combine.py
   Annotated  the same image with the YOLO label boxes (real + pasted people)
@@ -12,8 +11,7 @@ Mudslide - taken from the ERA backgrounds) and three rows:
 Usage
   python 09-example-figure.py                      # out/diagram.png
   python 09-example-figure.py --per-class 2 --cell 320 --seed 3
-  python 09-example-figure.py --weights out/runs/yolo11n_v4/weights/best.pt
-      # "Annotated" row shows detector predictions with confidence instead
+  python 09-example-figure.py --weights out/runs/yolo11n_v4/weights/best.pt   # "Annotated" row shows detector predictions with confidence instead
 """
 
 import argparse

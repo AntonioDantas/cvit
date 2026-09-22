@@ -4,19 +4,14 @@
 STEP 04 - Extraction and treatment of human figures (paper Sec. 3.1.2).
 
 Input : persons/raw/*.jpg   Multiple Poses Human Body (MPHB) dataset,
-                            26,675 images of bent / kneeling / sitting /
-                            standing / lying people.
+                            26,675 images of bent / kneeling / sitting / standing / lying people.
 Output: persons/valid/<stem>.png   transparent, tightly cropped cut-outs
         persons/report.csv         one row per raw image (status, conf, size)
 
-Two automated sub-steps, "ensuring that only clippings containing visible
-and intact humans were passed to the combination stage":
+Two automated sub-steps, "ensuring that only clippings containing visible and intact humans were passed to the combination stage":
 
   1. Background removal - rembg with the U2-Net "u2net_human_seg" model
-     isolates the central, highlighted person; the alpha channel is then
-     trimmed to its bounding box (as corte.py did). Frames are shrunk to
-     PERSON_MAX_SIDE_IN px first (U2-Net infers at 320 px; the final pasted
-     patches are <= 81 px, so nothing is lost).
+     isolates the central, highlighted person; the alpha channel is then trimmed to its bounding box (as corte.py did). Frames are shrunk to PERSON_MAX_SIDE_IN px first (U2-Net infers at 320 px; the final pasted patches are <= 81 px, so nothing is lost).
   2. Identification and clipping - the cut-out is composited over white and
      checked with a COCO person detector (YOLOv8x). It is accepted only if
         - at least PERSON_MIN_VISIBLE_PIXELS pixels are opaque,

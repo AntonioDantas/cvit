@@ -4,13 +4,11 @@
 STEP 02 - Sky exclusion mask (paper Sec. 3.1.1).
 
 "To ensure the physical coherence of the collage (preventing people from
- 'floating' in the sky), a semantic segmentation process was applied to
- identify and mask the unusable area."
+ 'floating' in the sky), a semantic segmentation process was applied to identify and mask the unusable area."
 
 Input : backgrounds/images/*
 Output: backgrounds/cloud.txt      one line per image: "<file> <px>"
-                                   px = lowest sky pixel measured from the top
-                                   (0 = no sky touching the top band)
+                                   px = lowest sky pixel measured from the top (0 = no sky touching the top band)
         backgrounds/preview/sky/*  optional red overlay of the forbidden band
 
 Model : SegFormer-B0 fine-tuned on ADE20K (class "sky"), run through
@@ -47,8 +45,7 @@ def sky_limit_px(img: Image.Image, processor, model, sky_id: int, device: str) -
     """Lowest row (1-based, from the top) classified as sky, or 0."""
     img = img.convert("RGB")
     w, h = img.size
-    # the 150-class logit map is upsampled to image size; cap that size so
-    # 20-Mpx photos do not need >10 GB (the result is scaled back to pixels)
+    # the 150-class logit map is upsampled to image size; cap that size so 20-Mpx photos do not need >10 GB (the result is scaled back to pixels)
     scale = min(1.0, C.SKY_MAX_SIDE / max(w, h))
     sw, sh = max(1, round(w * scale)), max(1, round(h * scale))
     small = img.resize((sw, sh), Image.BILINEAR) if scale < 1 else img
