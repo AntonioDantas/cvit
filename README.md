@@ -257,7 +257,7 @@ as a release asset rather than inside the repository:
 ```bash
 mkdir -p out/weight
 curl -L -o out/weight/best.pt \
-  https://github.com/<user>/<repo>/releases/download/v1.0/best.pt
+  https://github.com/AntonioDantas/cvit/releases/download/v1.0/best.pt
 ```
 
 Then:
