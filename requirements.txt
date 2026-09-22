@@ -1,0 +1,12 @@
+# Python 3.12 (tested on macOS arm64 / Apple M4 and CUDA Linux)
+torch>=2.4
+torchvision>=0.19
+ultralytics>=8.3
+rembg[cpu]>=2.0.60      # use rembg[gpu] on CUDA machines
+onnxruntime>=1.18
+transformers>=4.45
+imagehash>=4.3
+pillow>=10
+numpy>=1.26
+tqdm>=4.66
+pyyaml>=6
